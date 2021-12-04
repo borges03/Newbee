@@ -7,142 +7,183 @@ class LangParser(Parser):
     precedence = (
         ('left', PLUS, MINUS),
         ('left', TIMES, DIVIDE),
-        ('right', UMINUS),
+        ('right', BIGGER, SMALLER),
+        ('right', AND, OR),
         )
 
+    var = []
+    exp_var = []
+
     def __init__(self):
-        self.variables_n = { }
+        self.variables = {}
 
     @_('')
     def statement(self, p):
         pass
 
-    @_('STRING IS expr')
-    def statement(self, p):
-        self.variables_n[p.STRING] = p.expr
-
-    @_('expr')
+    @_('expr') #working
     def statement(self, p):
         print(p.expr)
 
-    @_('expr PLUS expr')
+    @_('expr PLUS term') #working
     def expr(self, p):
-        return p.expr0 + p.expr1
+        return p.expr + p.term
 
-    @_('expr MINUS expr')
+    @_('expr MINUS term') #working
     def expr(self, p):
-        return p.expr0 - p.expr1
+        return p.expr - p.term
 
-    @_('expr TIMES expr')
+    @_('term')
     def expr(self, p):
-        return p.expr0 * p.expr1
+        return p.term
 
-    @_('expr DIVIDE expr')
-    def expr(self, p):
-        return p.expr0 / p.expr1
+    @_('term TIMES factor') #working
+    def term(self, p):
+        return p.term * p.factor
 
-    @_('LPAREN expr RPAREN')
-    def expr(self, p):
-        return p.expr
+    @_('term DIVIDE factor') #working
+    def term(self, p):
+        if(p.factor == 0): return "Error: Dividing by 0"
+        return p.term / p.factor
 
-    @_('NUMBER')
-    def expr(self, p):
+    @_('term EXP factor')
+    def term(self, p):
+        return p.term ** p.factor
+
+    @_('term MOD factor')  # working
+    def term(self, p):
+        return p.term % p.factor
+
+    @_('NUMBER SMALLER NUMBER')
+    def term(self, p):
+        return p.NUMBER0 < p.NUMBER1
+
+    @_('NUMBER BIGGER NUMBER')
+    def term(self, p):
+        return p.NUMBER0 > p.NUMBER1
+
+    @_('NUMBER EQ2 NUMBER')
+    def term(self, p):
+        return p.NUMBER0 == p.NUMBER1
+
+    @_('factor')
+    def term(self, p):
+        return p.factor
+
+    @_('NUMBER') #working
+    def factor(self, p):
         return int(p.NUMBER)
 
-    @_('NUMBER PLUS NUMBER')  
+    @_('NUMBER "." NUMBER') #working
+    def factor(self, p):
+        return float((f"{p.NUMBER0}.{p.NUMBER1}"))
+
+    @_('LPAREN expr RPAREN') #working
+    def factor(self, p):
+        return p.expr
+
+    @_('factor LT factor') #working
+    def condition(self, p):
+        return p.factor0 < p.factor1
+
+    @_('factor GT factor') #working
+    def condition(self, p):
+        return p.factor0 > p.factor1
+
+    @_('factor EQEQ factor')
+    def condition(self, p):
+        return p.factor0 == p.factor1
+
+    @_('condition AND condition') #working
     def expr(self, p):
-        return  p.NUMBER0 + p.NUMBER1
+        left = p.condition0 #if this is true
+        right = p.condition1 # and true
+        if (left == True and right == True): result = True
+        elif (left != True and right == True):result = False
+        elif (right != True and left == True):result = False
+        elif (right != True and left != True):result = False
+        return result
 
-    @_('NUMBER MINUS NUMBER')  
+    @_('condition OR condition')
     def expr(self, p):
-        return  p.NUMBER0 + p.NUMBER1
+        left = p.condition0
+        right = p.condition1
+        if(left == True and right == True): result = True
+        elif(left != True and right == True): result = True
+        elif(right != True and left == True): result = True
+        elif(right != True and left != True): result = False
+        return result
 
-    @_('NUMBER DIVIDE NUMBER')  
+    @_('NOT condition')
     def expr(self, p):
-        return  p.NUMBER0 / p.NUMBER1
-
-    @_('NUMBER TIMES NUMBER')  
-    def expr(self, p):
-        return  p.NUMBER0 * p.NUMBER1
-
-    @_('NUMBER % NUMBER')  
-    def expr(self, p):
-        return  p.NUMBER0 % p.NUMBER1
-
-    @_('expr "%" expr')
-    def expr(self, p):
-        return ('%', p.expr0, p.expr1)
-
-    @_('expr IN expr BOOL')
-    def statement(self, p):
-        return ('if_bool', p.expr1, p.expr2)
-   
-   @_('expr IS STRING')
-    def expr(self, p):
-        self.variables_n[p.expr] = p.STRING
-
-    @_('expr IS NUMBER')
-    def expr(self, p):
-        self.variables_n[p.expr] = p.NUMBER
-
-    @_('expr IS BOOL')
-    def expr(self, p):
-        self.variables_n[p.expr] = True;
-
-    @_('NUMBER "." NUMBER')  
-    def expr(self, p):
-        return  float((f"{p.NUMBER0}.{p.NUMBER1}"))
-
-    @_('expr AND expr')
-    def expr(self, p):
-        return ('and', p.expr0, p.expr1)
-
-    @_('expr OR expr')
-    def expr(self, p):
-        return ('or', p.expr0, p.expr1)
-
-    @_('NOT expr')
-    def expr(self, p):
-        return ('!', p.expr)
-
-    @_('INCREASE var')
-    def var_assign(self, p):
-        return ('var_assign', p.var, ('+', ('var', p.var), 1))
-
-    @_('DECREASE var')
-    def var_assign(self, p):
-        return ('var_assign', p.var, ('-', ('var', p.var), 1))
-
-
-    @_('expr SMALLER expr')
-    def expr(self, p):
-        return ('<', p.expr0, p.expr1)
-
-    @_('expr BIGGER expr')
-    def expr(self, p):
-        return ('>', p.expr0, p.expr1)
+        result = p.condition
+        if result == True:  result = False
+        elif result == False: result = True
+        else: result = "Error"
+        return result
 
     @_('PRINT expr')
     def statement(self, p):
-        return ('print', p.expr)
+        if(p.expr in self.variables):
+            result = self.variables[p.expr]
+            return result
+        else:
+            return p.expr
 
-    @_('PRINT STRING')
+    @_('ID IS STRING') #save variables with strings
     def statement(self, p):
-        return ('print', p.STRING)
+        for i in LangParser.var:
+            if (p.ID in i):
+                i[p.ID] = p.STRING
+            else:
+                self.variables[p.ID] = p.STRING
+                LangParser.var = LangParser.var + [self.variables]
 
-    @_('empty')
-    def expr(self, p):
-        return []
+    @_('ID IS factor') # Save variables with numbers
+    def statement(self, p):
+        for i in LangParser.var:
+            if(p.ID in i):
+                i[p.ID] = p.factor
+            else:
+                self.variables[p.ID] = p.factor
+                LangParser.var = LangParser.var +[self.variables]
 
-    if __name__ == '__main__':
-    lexer = IniLexer()
-    parser = IniParser()
-    env = {}
-    while True:
-        try:
-            text = input('test > ')
-        except EOFError:
-            break
-        if text:
-            tree = parser.parse(lexer.tokenize(text))
-            print(tree)
+    @_('ID') # Variable Print
+    def statement(self, p):
+        for i in LangParser.var:
+            if(p.ID in i):
+                result = i[p.ID]
+                return result
+            else:
+                result = 'variable not found'
+                return result
+
+    # @_('STRING')
+    # def statement(self,p):
+    #     print(p.STRING)
+
+    @_('var_as') #helper function
+    def statement(self, p):
+        return p.var_as
+
+    @_('ID EQUALS factor') #Adds exp var to exp_var array
+    def var_as(self, p):
+        self.variables[p.ID] = p.factor
+        LangParser.exp_var = LangParser.exp_var + [self.variables]
+        return LangParser.exp_var
+
+    @_('FOR var_as TO expr THEN statement')
+    def statement(self, p):
+        return ('for_loop', ('for_loop_setup', p.var_as, p.expr), p.statement)
+
+    @_('FOR var_as IN expr THEN statement')
+    def statement(self, p):
+        return ('for_loop', ('for_loop_setup', p.var_as, p.expr), p.statement)
+
+    @_('IF condition THEN statement ELSE statement')
+    def statement(self, p):
+        return ('if_stmt', p.condition, ('branch', p.statement0, p.statement1))
+
+    @_('WHILE condition THEN statement')
+    def statement(self, p):
+        return('while_loop', ('while_loop_setup', p.condition('branch', p.statement)))
